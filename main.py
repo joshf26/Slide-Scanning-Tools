@@ -1,4 +1,5 @@
 import os
+import sys
 
 os.environ['PYGAME_HIDE_SUPPORT_PROMPT'] = "hide"
 
@@ -17,9 +18,9 @@ def calculate_frame_difference(prev_frame, current_frame):
     return np.mean((cv2.cvtColor(prev_frame, cv2.COLOR_BGR2GRAY) - cv2.cvtColor(current_frame, cv2.COLOR_BGR2GRAY)) ** 2)
 
 
-def transform_frame(frame, corners):
+def transform_frame(frame, corners, aspect_ratio):
     width = max(corners[1][0], corners[2][0]) - min(corners[0][0], corners[3][0])
-    height = max(corners[2][1], corners[3][1]) - min(corners[0][1], corners[1][1])
+    height = int(width / aspect_ratio)
     return cv2.warpPerspective(
         frame,
         cv2.getPerspectiveTransform(
@@ -33,7 +34,7 @@ def transform_frame(frame, corners):
 def prompt_for_corners(frame, height, width):
     pygame.init()
     screen = pygame.display.set_mode((width / 2, height / 2))
-    pygame.display.set_caption("Click Four Corners")
+    pygame.display.set_caption('Click Corners (0/4)')
     screen.blit(
         pygame.surfarray.make_surface(
             np.flip(
@@ -54,10 +55,13 @@ def prompt_for_corners(frame, height, width):
                 x, y = pygame.mouse.get_pos()
                 result.append((x * 2, y * 2))
                 pygame.draw.circle(screen, (255, 0, 0), (x, y), 5)
+                pygame.display.set_caption(f'Click Corners ({len(result)}/4)')
                 pygame.display.update()
 
     pygame.quit()
-    return result
+
+    result.sort()
+    return result[0], result[3], result[2], result[1]
 
 
 def prepare_output_path(output_path):
@@ -66,7 +70,7 @@ def prepare_output_path(output_path):
     os.makedirs(output_path)
 
 
-def extract_frames(video_path, output_dir):
+def extract_frames(video_path, output_dir, aspect_ratio):
     cap = cv2.VideoCapture(video_path)
     if not cap.isOpened():
         print(f'Error opening video file: {video_path}')
@@ -88,12 +92,12 @@ def extract_frames(video_path, output_dir):
             print('Corners:', corners)
             bar = progress.bar.Bar('Analyzing...', max=cap.get(cv2.CAP_PROP_FRAME_COUNT))
 
-        transformed_frame = transform_frame(frame, corners)
+        transformed_frame = transform_frame(frame, corners, aspect_ratio)
 
         if prev_frame is not None:
             difference = calculate_frame_difference(prev_frame, transformed_frame)
             if primed and difference < CAPTURE_THRESHOLD:
-                frame_filename = os.path.join(output_dir, f"frame_{frame_count:04d}.jpg")
+                frame_filename = os.path.join(output_dir, f'frame_{frame_count:04d}.jpg')
                 cv2.imwrite(frame_filename, transformed_frame)
                 frame_count += 1
                 primed = False
@@ -109,15 +113,30 @@ def extract_frames(video_path, output_dir):
     return frame_count
 
 
-def main(input_path, output_path):
+def parse_aspect_ratio(aspect_ratio):
+    try:
+        x, y = map(int, aspect_ratio.split(':'))
+    except ValueError:
+        print('Error parsing aspect ratio: should be in the format "x:y"')
+        sys.exit(1)
+
+    try:
+        return x / y
+    except ZeroDivisionError:
+        print('Error parsing aspect ratio: divide by zero error')
+        sys.exit(1)
+
+
+def main(input_path, output_path, aspect_ratio):
     prepare_output_path(output_path)
-    num_frames = extract_frames(input_path, output_path)
+    num_frames = extract_frames(input_path, output_path, parse_aspect_ratio(aspect_ratio))
     print(f'Done! {num_frames} frames saved to "{output_path}"')
 
 
-if __name__ == "__main__":
+if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='Capture still slides from a video.')
     parser.add_argument('input', type=str, help='the path to the input video')
+    parser.add_argument('-r', '--aspect_ratio', type=str, default='4:3', help='the aspect ratio of the resulting images (default 4:3)')
     parser.add_argument('-o', '--output', type=str, default='./output', help='the path to the image output')
     args = parser.parse_args()
-    main(args.input, args.output)
+    main(args.input, args.output, args.aspect_ratio)

@@ -1,9 +1,13 @@
-import shutil
-from argparse import ArgumentParser
-
-import cv2
 import os
+
+os.environ['PYGAME_HIDE_SUPPORT_PROMPT'] = "hide"
+
+import argparse
+import cv2
 import numpy as np
+import progress.bar
+import pygame
+import shutil
 
 PRIMING_THRESHOLD = 50
 CAPTURE_THRESHOLD = 3
@@ -26,10 +30,40 @@ def transform_frame(frame, corners):
     )
 
 
-def prepare_output_path(path):
-    if os.path.exists(path):
-        shutil.rmtree(path)
-    os.makedirs(path)
+def prompt_for_corners(frame, height, width):
+    pygame.init()
+    screen = pygame.display.set_mode((width / 2, height / 2))
+    pygame.display.set_caption("Click Four Corners")
+    screen.blit(
+        pygame.surfarray.make_surface(
+            np.flip(
+                np.rot90(cv2.cvtColor(cv2.resize(frame, dsize=(width // 2, height // 2)), cv2.COLOR_BGR2RGB)),
+                0,
+            )
+        ),
+        (0, 0),
+    )
+    pygame.display.flip()
+
+    result = []
+    while len(result) < 4:
+        for event in pygame.event.get():
+            if event.type == pygame.QUIT:
+                break
+            elif event.type == pygame.MOUSEBUTTONDOWN:
+                x, y = pygame.mouse.get_pos()
+                result.append((x * 2, y * 2))
+                pygame.draw.circle(screen, (255, 0, 0), (x, y), 5)
+                pygame.display.update()
+
+    pygame.quit()
+    return result
+
+
+def prepare_output_path(output_path):
+    if os.path.exists(output_path):
+        shutil.rmtree(output_path)
+    os.makedirs(output_path)
 
 
 def extract_frames(video_path, output_dir):
@@ -42,20 +76,22 @@ def extract_frames(video_path, output_dir):
     prev_frame = None
     primed = True
     corners = None
+    bar = None
 
     while True:
         returned, frame = cap.read()
         if not returned:
             break
 
-        if prev_frame is None:
+        if corners is None:
             corners = prompt_for_corners(frame, frame.shape[0], frame.shape[1])
+            print('Corners:', corners)
+            bar = progress.bar.Bar('Analyzing...', max=cap.get(cv2.CAP_PROP_FRAME_COUNT))
 
         transformed_frame = transform_frame(frame, corners)
 
         if prev_frame is not None:
             difference = calculate_frame_difference(prev_frame, transformed_frame)
-            print(difference)
             if primed and difference < CAPTURE_THRESHOLD:
                 frame_filename = os.path.join(output_dir, f"frame_{frame_count:04d}.jpg")
                 cv2.imwrite(frame_filename, transformed_frame)
@@ -66,57 +102,22 @@ def extract_frames(video_path, output_dir):
 
         prev_frame = transformed_frame
 
+        bar.next()
+
     cap.release()
-    print(f"Frames extracted: {frame_count}")
-
-
-def prompt_for_corners(frame, height, width):
-    print(f'prompt_for_corners({frame}, {height}, {width})')
-
-    import pygame
-    pygame.init()
-    screen = pygame.display.set_mode((width/2, height/2))
-    pygame.display.set_caption("Click Four Corners")
-    screen.blit(pygame.surfarray.make_surface(np.flip(np.rot90(cv2.resize(frame, dsize=(width//2, height//2))), 0)), (0, 0))
-    pygame.display.flip()
-
-    # List to store the clicked points
-    clicked_points = []
-
-    # Main game loop
-    running = True
-    while running:
-        for event in pygame.event.get():
-            if event.type == pygame.QUIT:
-                running = False
-            elif event.type == pygame.MOUSEBUTTONDOWN and len(clicked_points) < 4:
-                x, y = pygame.mouse.get_pos()
-                clicked_points.append((x*2, y*2))
-                pygame.draw.circle(screen, (255, 0, 0), (x, y), 5)
-                pygame.display.update()
-
-        if len(clicked_points) == 4:
-            running = False
-
-    return clicked_points
+    bar.finish()
+    return frame_count
 
 
 def main(input_path, output_path):
     prepare_output_path(output_path)
-    extract_frames(input_path, output_path)
+    num_frames = extract_frames(input_path, output_path)
+    print(f'Done! {num_frames} frames saved to "{output_path}"')
 
 
 if __name__ == "__main__":
-    parser = ArgumentParser(description='Capture still slides from a video.')
+    parser = argparse.ArgumentParser(description='Capture still slides from a video.')
     parser.add_argument('input', type=str, help='the path to the input video')
-    # parser.add_argument('x1', type=int, help='the top left corner x')
-    # parser.add_argument('y1', type=int, help='the top left corner y')
-    # parser.add_argument('x2', type=int, help='the top right corner x')
-    # parser.add_argument('y2', type=int, help='the top right corner y')
-    # parser.add_argument('x3', type=int, help='the bottom right corner x')
-    # parser.add_argument('y3', type=int, help='the bottom right corner y')
-    # parser.add_argument('x4', type=int, help='the bottom left corner x')
-    # parser.add_argument('y4', type=int, help='the bottom left corner y')
-    parser.add_argument('-o', '--output', type=str, default='output', help='the path to the image output')
+    parser.add_argument('-o', '--output', type=str, default='./output', help='the path to the image output')
     args = parser.parse_args()
-    main(args.input, args.output)  #, ((args.x1, args.y1), (args.x2, args.y2), (args.x3, args.y3), (args.x4, args.y4)))
+    main(args.input, args.output)

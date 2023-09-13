@@ -10,8 +10,10 @@ import progress.bar
 import pygame
 import shutil
 
+CAPTURE_THRESHOLD = 0.7
+FRAMES_REQUIRED_FOR_CAPTURE = 3
+CORNER_NAMES = ['Top Left', 'Top Right', 'Bottom Right', 'Bottom Left', 'Done!']
 PRIMING_THRESHOLD = 50
-CAPTURE_THRESHOLD = 3
 
 
 def calculate_frame_difference(prev_frame, current_frame):
@@ -34,7 +36,7 @@ def transform_frame(frame, corners, aspect_ratio):
 def prompt_for_corners(frame, height, width):
     pygame.init()
     screen = pygame.display.set_mode((width / 2, height / 2))
-    pygame.display.set_caption('Click Corners (0/4)')
+    pygame.display.set_caption(f'Click {CORNER_NAMES[0]} Corner (0/4)')
     screen.blit(
         pygame.surfarray.make_surface(
             np.flip(
@@ -50,18 +52,19 @@ def prompt_for_corners(frame, height, width):
     while len(result) < 4:
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
-                break
+                pygame.quit()
+                print('Pygame window closed: terminating')
+                sys.exit(0)
             elif event.type == pygame.MOUSEBUTTONDOWN:
                 x, y = pygame.mouse.get_pos()
                 result.append((x * 2, y * 2))
                 pygame.draw.circle(screen, (255, 0, 0), (x, y), 5)
-                pygame.display.set_caption(f'Click Corners ({len(result)}/4)')
+                pygame.display.set_caption(f'Click {CORNER_NAMES[len(result)]} Corner ({len(result)}/4)')
                 pygame.display.update()
 
     pygame.quit()
 
-    result.sort()
-    return result[0], result[3], result[2], result[1]
+    return result
 
 
 def prepare_output_path(output_path):
@@ -81,6 +84,7 @@ def extract_frames(video_path, output_dir, aspect_ratio):
     primed = True
     corners = None
     bar = None
+    capture_count = 0
 
     while True:
         returned, frame = cap.read()
@@ -97,15 +101,18 @@ def extract_frames(video_path, output_dir, aspect_ratio):
         if prev_frame is not None:
             difference = calculate_frame_difference(prev_frame, transformed_frame)
             if primed and difference < CAPTURE_THRESHOLD:
-                frame_filename = os.path.join(output_dir, f'frame_{frame_count:04d}.jpg')
-                cv2.imwrite(frame_filename, transformed_frame)
-                frame_count += 1
-                primed = False
+                capture_count += 1
+                if capture_count > FRAMES_REQUIRED_FOR_CAPTURE:
+                    frame_filename = os.path.join(output_dir, f'frame_{frame_count:04d}.jpg')
+                    cv2.imwrite(frame_filename, transformed_frame)
+                    frame_count += 1
+                    capture_count = 0
+                    primed = False
             elif difference > PRIMING_THRESHOLD:
+                capture_count = 0
                 primed = True
 
         prev_frame = transformed_frame
-
         bar.next()
 
     cap.release()

@@ -6,14 +6,10 @@ os.environ['PYGAME_HIDE_SUPPORT_PROMPT'] = "hide"
 import argparse
 import cv2
 import numpy as np
-import progress.bar
 import pygame
 import shutil
 
-CAPTURE_THRESHOLD = 0.7
-FRAMES_REQUIRED_FOR_CAPTURE = 3
 CORNER_NAMES = ['Top Left', 'Top Right', 'Bottom Right', 'Bottom Left', 'Done!']
-PRIMING_THRESHOLD = 50
 
 
 def calculate_frame_difference(prev_frame, current_frame):
@@ -33,7 +29,9 @@ def transform_frame(frame, corners, aspect_ratio):
     )
 
 
-def prompt_for_corners(frame, height, width):
+def prompt_for_corners(frame):
+    height, width, _ = frame.shape
+
     pygame.init()
     screen = pygame.display.set_mode((width / 2, height / 2))
     pygame.display.set_caption(f'Click {CORNER_NAMES[0]} Corner (0/4)')
@@ -67,56 +65,81 @@ def prompt_for_corners(frame, height, width):
     return result
 
 
-def prepare_output_path(output_path):
-    if os.path.exists(output_path):
-        shutil.rmtree(output_path)
-    os.makedirs(output_path)
-
-
-def extract_frames(video_path, output_dir, aspect_ratio):
+def get_average_frame(video_path):
     cap = cv2.VideoCapture(video_path)
     if not cap.isOpened():
         print(f'Error opening video file: {video_path}')
         return
 
     frame_count = 0
+    result = None
+
+    while True:
+        returned, frame = cap.read()
+        if not returned or frame_count > 200:
+            break
+
+        frame = frame.astype(np.float32)
+
+        if result is None:
+            result = frame
+        else:
+            result += frame
+
+        frame_count += 1
+
+    cap.release()
+
+    return (result / frame_count).astype(np.uint8)
+
+
+def prepare_output_path(output_path):
+    if os.path.exists(output_path):
+        shutil.rmtree(output_path)
+    os.makedirs(output_path)
+
+
+def extract_frames(video_path, output_dir, aspect_ratio, corners, priming_threshold, capture_threshold, frames_required_for_capture, differences_file = None):
+    cap = cv2.VideoCapture(video_path)
+    if not cap.isOpened():
+        print(f'Error opening video file: {video_path}')
+        return
+
+    frame_number = 0
+    total_frames = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
+    frame_count = 0
     prev_frame = None
     primed = True
-    corners = None
-    bar = None
-    capture_count = 0
+    frames_above_capture_threshold = 0
 
     while True:
         returned, frame = cap.read()
         if not returned:
             break
 
-        if corners is None:
-            corners = prompt_for_corners(frame, frame.shape[0], frame.shape[1])
-            print('Corners:', corners)
-            bar = progress.bar.Bar('Analyzing...', max=cap.get(cv2.CAP_PROP_FRAME_COUNT))
-
         transformed_frame = transform_frame(frame, corners, aspect_ratio)
 
         if prev_frame is not None:
             difference = calculate_frame_difference(prev_frame, transformed_frame)
-            if primed and difference < CAPTURE_THRESHOLD:
-                capture_count += 1
-                if capture_count > FRAMES_REQUIRED_FOR_CAPTURE:
+            if differences_file is not None:
+                differences_file.write(str(difference) + '\n')
+            if primed and difference < capture_threshold:
+                frames_above_capture_threshold += 1
+                if frames_above_capture_threshold > frames_required_for_capture:
                     frame_filename = os.path.join(output_dir, f'frame_{frame_count:04d}.jpg')
                     cv2.imwrite(frame_filename, transformed_frame)
                     frame_count += 1
-                    capture_count = 0
+                    frames_above_capture_threshold = 0
                     primed = False
-            elif difference > PRIMING_THRESHOLD:
-                capture_count = 0
+            elif difference > priming_threshold:
+                frames_above_capture_threshold = 0
                 primed = True
 
         prev_frame = transformed_frame
-        bar.next()
+        frame_number += 1
+        print(f'Processing frame {frame_number}/{total_frames}', end='\r')
 
     cap.release()
-    bar.finish()
     return frame_count
 
 
@@ -134,16 +157,44 @@ def parse_aspect_ratio(aspect_ratio):
         sys.exit(1)
 
 
-def main(input_path, output_path, aspect_ratio):
+def main(input_path, output_path, aspect_ratio, differences_path, priming_threshold, capture_threshold, frames_required_for_capture):
+    corners = prompt_for_corners(get_average_frame(input_path))
+    print(f'Corners: {corners}')
     prepare_output_path(output_path)
-    num_frames = extract_frames(input_path, output_path, parse_aspect_ratio(aspect_ratio))
+    if differences_path is None:
+        num_frames = extract_frames(
+            input_path,
+            output_path,
+            parse_aspect_ratio(aspect_ratio),
+            corners,
+            priming_threshold,
+            capture_threshold,
+            frames_required_for_capture,
+        )
+    else:
+        with open(differences_path, 'w') as differences_file:
+            num_frames = extract_frames(
+                input_path,
+                output_path,
+                parse_aspect_ratio(aspect_ratio),
+                corners,
+                priming_threshold,
+                capture_threshold,
+                frames_required_for_capture,
+                differences_file,
+            )
+        print(f'Differences saved to {differences_path}')
     print(f'Done! {num_frames} frames saved to "{output_path}"')
 
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='Capture still slides from a video.')
-    parser.add_argument('input', type=str, help='the path to the input video')
-    parser.add_argument('-r', '--aspect_ratio', type=str, default='4:3', help='the aspect ratio of the resulting images (default 4:3)')
-    parser.add_argument('-o', '--output', type=str, default='./output', help='the path to the image output')
+    parser.add_argument('input', type=str, help='path to the input video')
+    parser.add_argument('-r', '--aspect_ratio', type=str, default='4:3', help='aspect ratio of the resulting images (default 4:3)')
+    parser.add_argument('-o', '--output', type=str, default='./output', help='path to the image output (default ./output)')
+    parser.add_argument('-d', '--differences', type=str, help='path to export a list of frame differences (default None)')
+    parser.add_argument('-p', '--priming_threshold', type=int, default=50, help='minimum difference to prime for capture (default 50)')
+    parser.add_argument('-c', '--capture_threshold', type=int, default=2, help='maximum difference to capture once primed (default 2)')
+    parser.add_argument('-f', '--frames_required_for_capture', type=int, default=5, help='number of frames under the capture threshold needed to capture (default 5)')
     args = parser.parse_args()
-    main(args.input, args.output, args.aspect_ratio)
+    main(args.input, args.output, args.aspect_ratio, args.differences, args.priming_threshold, args.capture_threshold, args.frames_required_for_capture)

@@ -1,16 +1,19 @@
-import os
-import sys
 import argparse
 import contextlib
 import cv2
+import json
+import math
 import numpy as np
+import os
 import shutil
+import sys
 
 os.environ['PYGAME_HIDE_SUPPORT_PROMPT'] = "hide"
 
 import pygame
 
 CORNER_NAMES = ['Top Left', 'Top Right', 'Bottom Right', 'Bottom Left', 'Done!']
+CORNER_PROMPT_SCALE = 2
 
 
 def error(message):
@@ -26,10 +29,6 @@ def open_video(path, start_frame):
     capture.set(cv2.CAP_PROP_POS_FRAMES, start_frame)
     yield capture
     capture.release()
-
-
-def calculate_frame_difference(prev_frame, current_frame):
-    return np.mean((cv2.cvtColor(prev_frame, cv2.COLOR_BGR2GRAY) - cv2.cvtColor(current_frame, cv2.COLOR_BGR2GRAY)) ** 2)
 
 
 def transform_frame(frame, corners, aspect_ratio):
@@ -61,21 +60,24 @@ def prompt_for_corners(video_path, start_frame):
         result = []
         while len(result) < 4:
             returned, next_frame = capture.read()
-            next_frame = next_frame.astype(np.float32)
             if returned:
+                next_frame = next_frame.astype(np.float32)
                 frame_count += 1
                 frame += next_frame
                 screen.blit(
                     pygame.surfarray.make_surface(
                         np.flip(
-                            np.rot90(cv2.cvtColor(cv2.resize((frame / frame_count).astype(np.uint8), dsize=(width // 2, height // 2)), cv2.COLOR_BGR2RGB)),
+                            np.rot90(cv2.cvtColor(cv2.resize(
+                                (frame / frame_count).astype(np.uint8),
+                                dsize=(width // CORNER_PROMPT_SCALE, height // CORNER_PROMPT_SCALE)
+                            ), cv2.COLOR_BGR2RGB)),
                             0,
                         )
                     ),
                     (0, 0),
                 )
                 for x, y in result:
-                    pygame.draw.circle(screen, (255, 0, 0), (x / 2, y / 2), 5)
+                    pygame.draw.circle(screen, (255, 0, 0), (x / CORNER_PROMPT_SCALE, y / CORNER_PROMPT_SCALE), 5)
                 pygame.display.flip()
 
             for event in pygame.event.get():
@@ -84,13 +86,14 @@ def prompt_for_corners(video_path, start_frame):
                     error('Pygame window closed: terminating')
                 elif event.type == pygame.MOUSEBUTTONDOWN:
                     x, y = pygame.mouse.get_pos()
-                    result.append((x * 2, y * 2))
+                    result.append([x * CORNER_PROMPT_SCALE, y * CORNER_PROMPT_SCALE])
                     pygame.draw.circle(screen, (255, 0, 0), (x, y), 5)
                     pygame.display.set_caption(f'Click {CORNER_NAMES[len(result)]} Corner ({len(result)}/4)')
                     pygame.display.update()
 
     pygame.quit()
 
+    print(f'''Run again with the following flag to use the same corners: "-n '{result}'"''')
     return result
 
 
@@ -100,15 +103,16 @@ def prepare_output_path(output_path):
     os.makedirs(output_path)
 
 
-def extract_frames(video_path, output_dir, aspect_ratio, corners, priming_threshold, capture_threshold, frames_required_for_capture, start_frame, end_frame, differences_file = None):
+def extract_frames(video_path, output_dir, aspect_ratio, priming_brightness, capture_brightness, backtrack_time, corners, start_frame, end_frame):
     with open_video(video_path, start_frame) as capture:
+        frames_to_backtrack = math.ceil(capture.get(cv2.CAP_PROP_FPS) / 1000 * backtrack_time)
         frame_number = 1
         video_frames = int(capture.get(cv2.CAP_PROP_FRAME_COUNT))
         total_frames = (video_frames if end_frame is None else min(end_frame, video_frames)) - start_frame
-        frame_count = 0
+        capture_count = 0
         prev_frame = None
         primed = True
-        frames_above_capture_threshold = 0
+        frame_queue = []
 
         while True:
             returned, frame = capture.read()
@@ -118,30 +122,30 @@ def extract_frames(video_path, output_dir, aspect_ratio, corners, priming_thresh
             if end_frame is not None and frame_number > (end_frame - start_frame):
                 break
 
-            print(f'Processing frame {frame_number}/{total_frames}', end='\r')
+            print(f'Processing frame {frame_number}/{total_frames} ({capture_count} captured)', end='\r')
 
             transformed_frame = transform_frame(frame, corners, aspect_ratio)
+            brightness = np.mean(transformed_frame)
 
             if prev_frame is not None:
-                difference = calculate_frame_difference(prev_frame, transformed_frame)
-                if differences_file is not None:
-                    differences_file.write(str(difference) + '\n')
-                if primed and difference < capture_threshold:
-                    frames_above_capture_threshold += 1
-                    if frames_above_capture_threshold > frames_required_for_capture:
-                        frame_filename = os.path.join(output_dir, f'frame_{frame_count:04d}.jpg')
-                        cv2.imwrite(frame_filename, transformed_frame)
-                        frame_count += 1
-                        frames_above_capture_threshold = 0
+                if primed:
+                    if len(frame_queue) >= frames_to_backtrack and brightness < capture_brightness:
+                        frame_filename = os.path.join(output_dir, f'slide_{capture_count:04d}.jpg')
+                        cv2.imwrite(frame_filename, frame_queue[0])
+                        capture_count += 1
                         primed = False
-                elif difference > priming_threshold:
-                    frames_above_capture_threshold = 0
+                    else:
+                        frame_queue.append(transformed_frame)
+                        if len(frame_queue) > frames_to_backtrack:
+                            frame_queue.pop(0)
+                elif brightness > priming_brightness:
+                    frame_queue = []
                     primed = True
 
             prev_frame = transformed_frame
             frame_number += 1
 
-    return frame_count, total_frames
+    return capture_count, total_frames
 
 
 def parse_aspect_ratio(aspect_ratio):
@@ -160,43 +164,38 @@ def main(
     input_path,
     output_path,
     aspect_ratio,
-    priming_threshold,
-    capture_threshold,
-    frames_required_for_capture,
+    priming_brightness,
+    capture_brightness,
+    backtrack_time,
     start_frame,
     end_frame,
-    differences_path,
+    corners,
 ):
-    corners = prompt_for_corners(input_path, start_frame)
-    print(f'Corners: {corners}')
+    if 0 > priming_brightness or priming_brightness > 255:
+        error('priming_brightness must be between 0 and 255 (inclusive)')
+    if 0 > capture_brightness or capture_brightness > 255:
+        error('capture_brightness must be between 0 and 255 (inclusive)')
+    if 0 > backtrack_time:
+        error('backtrack_time must be greater than 0')
+    if 0 > start_frame:
+        error('start_frame must be greater than 0')
+    if end_frame is not None and end_frame < start_frame:
+        error('end_frame must be greater than start_frame')
+
+
+    corners = prompt_for_corners(input_path, start_frame) if corners is None else json.loads(corners)
     prepare_output_path(output_path)
-    if differences_path is None:
-        frame_count, total_frames = extract_frames(
-            input_path,
-            output_path,
-            parse_aspect_ratio(aspect_ratio),
-            corners,
-            priming_threshold,
-            capture_threshold,
-            frames_required_for_capture,
-            start_frame,
-            end_frame,
-        )
-    else:
-        with open(differences_path, 'w') as differences_file:
-            frame_count, total_frames = extract_frames(
-                input_path,
-                output_path,
-                parse_aspect_ratio(aspect_ratio),
-                corners,
-                priming_threshold,
-                capture_threshold,
-                frames_required_for_capture,
-                start_frame,
-                end_frame,
-                differences_file,
-            )
-        print(f'Differences saved to "{differences_path}"')
+    frame_count, total_frames = extract_frames(
+        input_path,
+        output_path,
+        parse_aspect_ratio(aspect_ratio),
+        priming_brightness,
+        capture_brightness,
+        backtrack_time,
+        corners,
+        start_frame,
+        end_frame,
+    )
     print(f'Done! {frame_count}/{total_frames} frames saved to "{output_path}"')
 
 
@@ -205,22 +204,22 @@ if __name__ == '__main__':
     parser.add_argument('input', type=str, help='path to the input video')
     parser.add_argument('-o', '--output', type=str, default='./output', help='path to the image output (default ./output)')
     parser.add_argument('-r', '--aspect_ratio', type=str, default='4:3', help='aspect ratio of the resulting images (default 4:3)')
-    parser.add_argument('-d', '--differences', type=str, help='path to export a list of frame differences (default None)')
-    parser.add_argument('-c', '--capture_threshold', type=int, default=2, help='maximum difference to capture once primed (default 2)')
-    parser.add_argument('-p', '--priming_threshold', type=int, default=50, help='minimum difference to prime for capture (default 50)')
-    parser.add_argument('-f', '--frames_required_for_capture', type=int, default=5, help='number of frames under the capture threshold needed to capture (default 5)')
-    parser.add_argument('-s', '--start_frame', type=int, default=0, help='the frame number processing starts at (default 0)')
-    parser.add_argument('-e', '--end_frame', type=int, help='the frame number processing ends at (default None)')
+    parser.add_argument('-p', '--priming_brightness', type=int, default=75, help='minimum brightness required to prime the capture (default 75)')
+    parser.add_argument('-c', '--capture_brightness', type=int, default=10, help='maximum brightness required to capture once primed (default 10)')
+    parser.add_argument('-b', '--backtrack_time', type=int, default=50, help='number of milliseconds to backtrack when capturing (default 50)')
+    parser.add_argument('-s', '--start_frame', type=int, default=0, help='frame number processing starts at (default 0)')
+    parser.add_argument('-e', '--end_frame', type=int, help='frame number processing ends at (default None)')
+    parser.add_argument('-n', '--corners', type=str, help='JSON array of corner positions of the resulting image (default None)')
     args = parser.parse_args()
 
     main(
         args.input,
         args.output,
         args.aspect_ratio,
-        args.priming_threshold,
-        args.capture_threshold,
-        args.frames_required_for_capture,
+        args.priming_brightness,
+        args.capture_brightness,
+        args.backtrack_time,
         args.start_frame,
         args.end_frame,
-        args.differences,
+        args.corners,
     )

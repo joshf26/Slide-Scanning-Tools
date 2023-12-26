@@ -14,6 +14,8 @@ import pygame
 
 CORNER_NAMES = ['Top Left', 'Top Right', 'Bottom Right', 'Bottom Left', 'Done!']
 CORNER_PROMPT_SCALE = 2
+CORNER_RADIUS = 5
+UI_COLOR = (255, 0, 0)
 
 
 def error(message):
@@ -52,18 +54,29 @@ def prompt_for_corners(video_path, start_frame):
         frame = frame.astype(np.float32)
         height, width, _ = frame.shape
         frame_count = 0
+        dragging = None
+        draw_requested = True
+        done = False
 
         pygame.init()
         screen = pygame.display.set_mode((width / 2, height / 2))
-        pygame.display.set_caption(f'Click {CORNER_NAMES[0]} Corner (0/4)')
+        pygame.display.set_caption(f'Press Enter to Submit')
 
-        result = []
-        while len(result) < 4:
+        corners = [
+            [width * (1 / 4), height * (1 / 4)], # Top Left
+            [width * (3 / 4), height * (1 / 4)], # Top Right
+            [width * (3 / 4), height * (3 / 4)], # Bottom Right
+            [width * (1 / 4), height * (3 / 4)], # Bottom Left
+        ]
+        while not done:
             returned, next_frame = capture.read()
             if returned:
                 next_frame = next_frame.astype(np.float32)
                 frame_count += 1
                 frame += next_frame
+                draw_requested = True
+
+            if draw_requested:
                 screen.blit(
                     pygame.surfarray.make_surface(
                         np.flip(
@@ -76,25 +89,39 @@ def prompt_for_corners(video_path, start_frame):
                     ),
                     (0, 0),
                 )
-                for x, y in result:
-                    pygame.draw.circle(screen, (255, 0, 0), (x / CORNER_PROMPT_SCALE, y / CORNER_PROMPT_SCALE), 5)
+                scaled_corners = [(x / CORNER_PROMPT_SCALE, y / CORNER_PROMPT_SCALE) for x, y in corners]
+                for index in range(len(corners)):
+                    position = scaled_corners[index]
+                    next_position = scaled_corners[index + 1] if index < len(corners) - 1 else scaled_corners[0]
+                    pygame.draw.circle(screen, UI_COLOR, position, CORNER_RADIUS)
+                    pygame.draw.line(screen, UI_COLOR, position, next_position)
+
                 pygame.display.flip()
+                draw_requested = False
 
             for event in pygame.event.get():
+                x, y = pygame.mouse.get_pos()
                 if event.type == pygame.QUIT:
                     pygame.quit()
                     error('Pygame window closed: terminating')
                 elif event.type == pygame.MOUSEBUTTONDOWN:
-                    x, y = pygame.mouse.get_pos()
-                    result.append([x * CORNER_PROMPT_SCALE, y * CORNER_PROMPT_SCALE])
-                    pygame.draw.circle(screen, (255, 0, 0), (x, y), 5)
-                    pygame.display.set_caption(f'Click {CORNER_NAMES[len(result)]} Corner ({len(result)}/4)')
-                    pygame.display.update()
+                    try:
+                        dragging = next(index for index in range(4) if math.dist(corners[index], [x * CORNER_PROMPT_SCALE, y * CORNER_PROMPT_SCALE]) <= CORNER_RADIUS * 2)
+                    except StopIteration:
+                        dragging = None
+                elif event.type == pygame.MOUSEBUTTONUP:
+                    dragging = None
+                elif event.type == pygame.MOUSEMOTION and dragging is not None:
+                    corners[dragging] = x * CORNER_PROMPT_SCALE, y * CORNER_PROMPT_SCALE
+                    draw_requested = True
+                elif event.type == pygame.KEYDOWN:
+                    if event.key == pygame.K_RETURN:
+                        done = True
 
     pygame.quit()
 
-    print(f'''Run again with the following flag to use the same corners: "-n '{result}'"''')
-    return result
+    print(f'''Run again with the following flag to use the same corners: "-n '{corners}'"''')
+    return corners
 
 
 def prepare_output_path(output_path):

@@ -3,6 +3,7 @@ import contextlib
 import cv2
 import json
 import math
+import matplotlib.pyplot as plt
 import numpy as np
 import os
 import shutil
@@ -140,6 +141,7 @@ def extract_frames(video_path, output_dir, aspect_ratio, priming_brightness, cap
         prev_frame = None
         primed = True
         frame_queue = []
+        frame_brightness = []
 
         while True:
             returned, frame = capture.read()
@@ -153,13 +155,14 @@ def extract_frames(video_path, output_dir, aspect_ratio, priming_brightness, cap
 
             transformed_frame = transform_frame(frame, corners, aspect_ratio)
             brightness = np.mean(transformed_frame)
+            frame_brightness.append(brightness)
 
             if prev_frame is not None:
                 if primed:
                     if len(frame_queue) >= frames_to_backtrack and brightness < capture_brightness:
+                        capture_count += 1
                         frame_filename = os.path.join(output_dir, f'slide_{capture_count:04d}.jpg')
                         cv2.imwrite(frame_filename, frame_queue[0])
-                        capture_count += 1
                         primed = False
                     else:
                         frame_queue.append(transformed_frame)
@@ -172,7 +175,8 @@ def extract_frames(video_path, output_dir, aspect_ratio, priming_brightness, cap
             prev_frame = transformed_frame
             frame_number += 1
 
-    return capture_count, total_frames
+    print()  # Flush the output
+    return capture_count, total_frames, frame_brightness
 
 
 def parse_aspect_ratio(aspect_ratio):
@@ -187,9 +191,20 @@ def parse_aspect_ratio(aspect_ratio):
         error('Error parsing aspect ratio: divide by zero error')
 
 
+def save_brightness_graph(frame_brightness, brightness_graph):
+    plt.plot(frame_brightness)
+    plt.xlabel('Frame')
+    plt.ylabel('Brightness')
+    plt.yticks(np.arange(0, 255, step=8))
+    plt.title('Brightness')
+    plt.savefig(brightness_graph)
+    print(f'Saved brightness graph to {brightness_graph}')
+
+
 def main(
     input_path,
     output_path,
+    brightness_graph,
     aspect_ratio,
     priming_brightness,
     capture_brightness,
@@ -212,7 +227,7 @@ def main(
 
     corners = prompt_for_corners(input_path, start_frame) if corners is None else json.loads(corners)
     prepare_output_path(output_path)
-    frame_count, total_frames = extract_frames(
+    frame_count, total_frames, frame_brightness = extract_frames(
         input_path,
         output_path,
         parse_aspect_ratio(aspect_ratio),
@@ -223,13 +238,17 @@ def main(
         start_frame,
         end_frame,
     )
+
+    save_brightness_graph(frame_brightness, brightness_graph)
+
     print(f'Done! {frame_count}/{total_frames} frames saved to "{output_path}"')
 
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='Capture still slides from a video.')
     parser.add_argument('input', type=str, help='path to the input video')
-    parser.add_argument('-o', '--output', type=str, default='./output', help='path to the image output (default ./output)')
+    parser.add_argument('-o', '--output', type=str, default='./output', help='path to output images to (default ./output)')
+    parser.add_argument('-g', '--brightness_graph', type=str, default='./brightness.png', help='path to output brightness graphs to (default ./brightness.png)')
     parser.add_argument('-r', '--aspect_ratio', type=str, default='4:3', help='aspect ratio of the resulting images (default 4:3)')
     parser.add_argument('-p', '--priming_brightness', type=int, default=75, help='minimum brightness required to prime the capture (default 75)')
     parser.add_argument('-c', '--capture_brightness', type=int, default=10, help='maximum brightness required to capture once primed (default 10)')
@@ -242,6 +261,7 @@ if __name__ == '__main__':
     main(
         args.input,
         args.output,
+        args.brightness_graph,
         args.aspect_ratio,
         args.priming_brightness,
         args.capture_brightness,

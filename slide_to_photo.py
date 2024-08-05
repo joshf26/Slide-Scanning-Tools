@@ -191,12 +191,15 @@ def parse_aspect_ratio(aspect_ratio):
         error('Error parsing aspect ratio: divide by zero error')
 
 
-def save_brightness_graph(frame_brightness, brightness_graph):
+def save_brightness_graph(frame_brightness, brightness_graph, priming_brightness, capture_brightness):
     plt.plot(frame_brightness)
     plt.xlabel('Frame')
     plt.ylabel('Brightness')
     plt.yticks(np.arange(0, 255, step=8))
+    plt.axhline(priming_brightness, label=f'Priming Threshold ({priming_brightness})', color='red')
+    plt.axhline(capture_brightness, label=f'Capture Threshold ({capture_brightness})', color='gray')
     plt.title('Brightness')
+    plt.legend()
     plt.savefig(brightness_graph)
     print(f'Saved brightness graph to {brightness_graph}')
 
@@ -239,7 +242,7 @@ def main(
         end_frame,
     )
 
-    save_brightness_graph(frame_brightness, brightness_graph)
+    save_brightness_graph(frame_brightness, brightness_graph, priming_brightness, capture_brightness)
 
     print(f'Done! {frame_count}/{total_frames} frames saved to "{output_path}"')
 

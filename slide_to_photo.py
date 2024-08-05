@@ -112,7 +112,7 @@ def prompt_for_corners(video_path, start_frame):
                 elif event.type == pygame.MOUSEBUTTONUP:
                     dragging = None
                 elif event.type == pygame.MOUSEMOTION and dragging is not None:
-                    corners[dragging] = x * CORNER_PROMPT_SCALE, y * CORNER_PROMPT_SCALE
+                    corners[dragging] = [x * CORNER_PROMPT_SCALE, y * CORNER_PROMPT_SCALE]
                     draw_requested = True
                 elif event.type == pygame.KEYDOWN:
                     if event.key == pygame.K_RETURN:

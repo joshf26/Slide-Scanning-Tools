@@ -9,12 +9,27 @@ Tools to process photos and videos of projected slides.
 
 ### Processing Video
 
-1. Start the script with `python video_to_photos.py <INPUT_PATH>` which will use default parameters.
+Turn a video recording of a slide projector flipping through slides into a directory of photos.
+
+#### How to Use
+
+1. Start the script with `python src/video_to_photos.py <INPUT_PATH>` which will use default parameters.
 2. Click the corners of the slide when prompted in the order: top left, top right, bottom right, bottom left.
     - The image displayed is an average of all frames loaded so far, so if you don't see a slide to reference, just wait
       until more frames are loaded.
 3. Wait for the script to complete.
 4. View the results in the specified output directory (defaults to `./output`).
+5. View the brightness graph in the specified output path (defaults to `./brightness.png`)
+    - If not all slides are captured, or duplicate slides are captured, reference the brightness graph and tweak the
+      priming and capture brightness using the flags below.
+    - The priming brightness should be just below the shortest peak.
+    - The capture brightness should be just above the shallowest dip.
+
+#### Example Brightness Graph With Suitable Thresholds
+
+![Example Brightness Graph](./example_brightness.png)
+
+#### Optional Parameters
 
 | Name               | Flag | Default           | Description                                                                                                                                                            |
 |--------------------|------|-------------------|------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
@@ -29,14 +44,20 @@ Tools to process photos and videos of projected slides.
 
 ### Processing Photos
 
-1. Start the script with `python crop_photos.py <INPUT_PATH>` which will use default parameters.
+Crop and transform a directory of photos of a slide projector screen.
+
+#### How to Use
+
+1. Start the script with `python src/crop_photos.py <INPUT_PATH>` which will use default parameters.
 2. Click the corners of the slide when prompted in the order: top left, top right, bottom right, bottom left.
     - The image displayed is an average of all photos loaded so far.
 3. Wait for the script to complete.
 4. View the results in the specified output directory (defaults to `./output`).
 
-| Name               | Flag | Default           | Description                                                                                                                                                            |
-|--------------------|------|-------------------|------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
-| Output             | `-o` | `./output`        | The output path. The directory will be created if it does not exist.                                                                                                   |
-| Aspect Ratio       | `-r` | `4:3`             | The aspect ratio of the resulting images. This depends on the type of slides you are scanning.                                                                         |
-| Corners            | `-n` | `None` (prompt)   | A JSON array of each corner. Useful for tuning other values while keeping corners constant. By default, a window will open prompting you to click each corner.         |
+#### Optional Parameters
+
+| Name         | Flag | Default          | Description                                                                                                                                                    |
+|--------------|------|------------------|----------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| Output       | `-o` | `./output`       | The output path. The directory will be created if it does not exist.                                                                                           |
+| Aspect Ratio | `-r` | `4:3`            | The aspect ratio of the resulting images. This depends on the type of slides you are scanning.                                                                 |
+| Corners      | `-n` | `None` (prompt)  | A JSON array of each corner. Useful for tuning other values while keeping corners constant. By default, a window will open prompting you to click each corner. |

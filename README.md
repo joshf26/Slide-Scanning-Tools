@@ -34,7 +34,7 @@ Turn a video recording of a slide projector flipping through slides into a direc
 | Name               | Flag | Default           | Description                                                                                                                                                            |
 |--------------------|------|-------------------|------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
 | Output             | `-o` | `./output`        | The output path. The directory will be created if it does not exist.                                                                                                   |
-| Aspect Ratio       | `-r` | `4:3`             | The aspect ratio of the resulting images. This depends on the type of slides you are scanning.                                                                         |
+| Aspect Ratio       | `-r` | `3:2`             | The aspect ratio of the resulting images. This depends on the type of slides you are scanning.                                                                         |
 | Priming Brightness | `-p` | `75`              | How bright the frame needs to be before priming. Too low and you may capture duplicates, too high and you may miss slides.                                             |
 | Capture Brightness | `-c` | `10`              | How dim the frame needs to be before capturing. Too low and you may miss slides, too high and you may capture before the exposure has fully adjusted.                  |
 | Backtrack Time     | `-b` | `50`              | How many milliseconds to backtrack when capturing. Too low and you may capture slide transitions, too high and you may capture before the exposure has fully adjusted. |
@@ -48,7 +48,7 @@ Crop and transform a directory of photos of a slide projector screen.
 
 #### How to Use
 
-1. Start the script with `python src/crop_photos.py <INPUT_PATH>` which will use default parameters.
+1. Start the script with `python src/transform_photos.py <INPUT_PATH>` which will use default parameters.
 2. Click the corners of the slide when prompted in the order: top left, top right, bottom right, bottom left.
     - The image displayed is an average of all photos loaded so far.
 3. Wait for the script to complete.
@@ -56,8 +56,9 @@ Crop and transform a directory of photos of a slide projector screen.
 
 #### Optional Parameters
 
-| Name         | Flag | Default          | Description                                                                                                                                                    |
-|--------------|------|------------------|----------------------------------------------------------------------------------------------------------------------------------------------------------------|
-| Output       | `-o` | `./output`       | The output path. The directory will be created if it does not exist.                                                                                           |
-| Aspect Ratio | `-r` | `4:3`            | The aspect ratio of the resulting images. This depends on the type of slides you are scanning.                                                                 |
-| Corners      | `-n` | `None` (prompt)  | A JSON array of each corner. Useful for tuning other values while keeping corners constant. By default, a window will open prompting you to click each corner. |
+| Name             | Flag | Default         | Description                                                                                                                                                    |
+|------------------|------|-----------------|----------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| Output           | `-o` | `./output`      | The output path. The directory will be created if it does not exist.                                                                                           |
+| Aspect Ratio     | `-r` | `3:2`           | The aspect ratio of the resulting images. This depends on the type of slides you are scanning.                                                                 |
+| Corners          | `-n` | `None` (prompt) | A JSON array of each corner. Useful for tuning other values while keeping corners constant. By default, a window will open prompting you to click each corner. |
+| Images Per Slide | `-i` | `1`             | How many images in the input folder represent one slide. This is useful if your camera saves multiple photos per slide. Only the latest image will be saved.   |

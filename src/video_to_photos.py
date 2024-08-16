@@ -138,7 +138,7 @@ if __name__ == '__main__':
     parser.add_argument('input', type=str, help='path to the input video')
     parser.add_argument('-o', '--output', type=str, default='./output', help='path to output images to (default ./output)')
     parser.add_argument('-g', '--brightness_graph', type=str, default='./brightness.png', help='path to output brightness graphs to (default ./brightness.png)')
-    parser.add_argument('-r', '--aspect_ratio', type=str, default='4:3', help='aspect ratio of the resulting images (default 4:3)')
+    parser.add_argument('-r', '--aspect_ratio', type=str, default='3:2', help='aspect ratio of the resulting images (default 3:2)')
     parser.add_argument('-p', '--priming_brightness', type=int, default=75, help='minimum brightness required to prime the capture (default 75)')
     parser.add_argument('-c', '--capture_brightness', type=int, default=15, help='maximum brightness required to capture once primed (default 10)')
     parser.add_argument('-b', '--backtrack_time', type=int, default=50, help='number of milliseconds to backtrack when capturing (default 50)')

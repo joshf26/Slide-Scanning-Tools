@@ -101,6 +101,7 @@ def main(
     start_frame,
     end_frame,
     corners,
+    scale_down,
 ):
     if 0 > priming_brightness or priming_brightness > 255:
         error('priming_brightness must be between 0 and 255 (inclusive)')
@@ -114,7 +115,7 @@ def main(
         error('end_frame must be greater than start_frame')
 
 
-    corners = prompt_for_corners(generate_frames(input_path, start_frame)) if corners is None else json.loads(corners)
+    corners = prompt_for_corners(generate_frames(input_path, start_frame), scale_down) if corners is None else json.loads(corners)
     prepare_output_path(output_path)
     frame_count, total_frames, frame_brightness = extract_frames(
         input_path,
@@ -138,13 +139,14 @@ if __name__ == '__main__':
     parser.add_argument('input', type=str, help='path to the input video')
     parser.add_argument('-o', '--output', type=str, default='./output', help='path to output images to (default ./output)')
     parser.add_argument('-g', '--brightness_graph', type=str, default='./brightness.png', help='path to output brightness graphs to (default ./brightness.png)')
-    parser.add_argument('-r', '--aspect_ratio', type=str, default='3:2', help='aspect ratio of the resulting images (default 3:2)')
+    parser.add_argument('-a', '--aspect_ratio', type=str, default='3:2', help='aspect ratio of the resulting images (default 3:2)')
     parser.add_argument('-p', '--priming_brightness', type=int, default=75, help='minimum brightness required to prime the capture (default 75)')
     parser.add_argument('-c', '--capture_brightness', type=int, default=15, help='maximum brightness required to capture once primed (default 10)')
     parser.add_argument('-b', '--backtrack_time', type=int, default=50, help='number of milliseconds to backtrack when capturing (default 50)')
     parser.add_argument('-s', '--start_frame', type=int, default=0, help='frame number processing starts at (default 0)')
     parser.add_argument('-e', '--end_frame', type=int, help='frame number processing ends at (default None)')
     parser.add_argument('-n', '--corners', type=str, help='JSON array of corner positions of the resulting image (default None)')
+    parser.add_argument('-d', '--scale_down', type=int, default=2, help='scale down factor for pygame windows (default 2)')
     args = parser.parse_args()
 
     main(
@@ -158,4 +160,5 @@ if __name__ == '__main__':
         args.start_frame,
         args.end_frame,
         args.corners,
+        args.scale_down,
     )

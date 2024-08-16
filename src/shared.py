@@ -11,9 +11,10 @@ os.environ['PYGAME_HIDE_SUPPORT_PROMPT'] = "hide"
 import pygame
 
 CORNER_NAMES = ['Top Left', 'Top Right', 'Bottom Right', 'Bottom Left', 'Done!']
-CORNER_PROMPT_SCALE = 2
 CORNER_RADIUS = 5
 UI_COLOR = (255, 0, 0)
+
+pygame.init()
 
 
 def error(message):
@@ -34,7 +35,7 @@ def transform_frame(frame, corners, aspect_ratio):
     )
 
 
-def prompt_for_corners(frames):
+def prompt_for_corners(frames, scale_down):
     try:
         frame = next(frames).astype(np.float32)
     except StopIteration:
@@ -46,15 +47,15 @@ def prompt_for_corners(frames):
     draw_requested = True
     done = False
 
-    pygame.init()
-    screen = pygame.display.set_mode((width / 2, height / 2))
-    pygame.display.set_caption(f'Press Enter to Submit')
+    print('Opening pygame window for corner input...')
+    screen = pygame.display.set_mode((width // scale_down, height // scale_down))
+    pygame.display.set_caption('Press enter to submit')
 
     corners = [
-        [width * (1 / 4), height * (1 / 4)], # Top Left
-        [width * (3 / 4), height * (1 / 4)], # Top Right
-        [width * (3 / 4), height * (3 / 4)], # Bottom Right
-        [width * (1 / 4), height * (3 / 4)], # Bottom Left
+        [int(width * (1 / 4)), int(height * (1 / 4))], # Top Left
+        [int(width * (3 / 4)), int(height * (1 / 4))], # Top Right
+        [int(width * (3 / 4)), int(height * (3 / 4))], # Bottom Right
+        [int(width * (1 / 4)), int(height * (3 / 4))], # Bottom Left
     ]
     while not done:
         try:
@@ -71,14 +72,14 @@ def prompt_for_corners(frames):
                     np.flip(
                         np.rot90(cv2.cvtColor(cv2.resize(
                             (frame / frame_count).astype(np.uint8),
-                            dsize=(width // CORNER_PROMPT_SCALE, height // CORNER_PROMPT_SCALE)
+                            dsize=(width // scale_down, height // scale_down)
                         ), cv2.COLOR_BGR2RGB)),
                         0,
                     )
                 ),
                 (0, 0),
             )
-            scaled_corners = [(x / CORNER_PROMPT_SCALE, y / CORNER_PROMPT_SCALE) for x, y in corners]
+            scaled_corners = [(x / scale_down, y / scale_down) for x, y in corners]
             for index in range(len(corners)):
                 position = scaled_corners[index]
                 next_position = scaled_corners[index + 1] if index < len(corners) - 1 else scaled_corners[0]
@@ -95,13 +96,13 @@ def prompt_for_corners(frames):
                 error('Pygame window closed: terminating')
             elif event.type == pygame.MOUSEBUTTONDOWN:
                 try:
-                    dragging = next(index for index in range(4) if math.dist(corners[index], [x * CORNER_PROMPT_SCALE, y * CORNER_PROMPT_SCALE]) <= CORNER_RADIUS * 2)
+                    dragging = next(index for index in range(4) if math.dist(corners[index], [x * scale_down, y * scale_down]) <= CORNER_RADIUS * 2)
                 except StopIteration:
                     dragging = None
             elif event.type == pygame.MOUSEBUTTONUP:
                 dragging = None
             elif event.type == pygame.MOUSEMOTION and dragging is not None:
-                corners[dragging] = [x * CORNER_PROMPT_SCALE, y * CORNER_PROMPT_SCALE]
+                corners[dragging] = [x * scale_down, y * scale_down]
                 draw_requested = True
             elif event.type == pygame.KEYDOWN:
                 if event.key == pygame.K_RETURN:

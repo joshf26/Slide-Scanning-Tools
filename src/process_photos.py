@@ -16,6 +16,10 @@ def generate_frames(input_path, images_per_slide):
         yield cv2.imread(os.path.join(input_path, file_name))
 
 
+def set_caption(frame_count, frames):
+    pygame.display.set_caption(f'[{frame_count + 1} / {len(frames)}] Arrow keys: rotate, space: next, backspace: prev')
+
+
 def rotate_images(frames, scale_down):
     if not frames:
         error('No frames provided')
@@ -26,7 +30,7 @@ def rotate_images(frames, scale_down):
 
     print('Opening pygame window for rotation...')
     screen = pygame.display.set_mode((size // scale_down, size // scale_down))
-    pygame.display.set_caption(f'[1 / {len(frames)}] Use arrow keys to rotate, press space to advance')
+    set_caption(frame_count, frames)
 
     try:    
         while True:
@@ -56,7 +60,11 @@ def rotate_images(frames, scale_down):
                         if frame_count == len(frames):
                             return frames
                         height, width, _ = frames[frame_count].shape
-                        pygame.display.set_caption(f'[{frame_count + 1} / {len(frames)}] Use arrow keys to rotate, press space to advance')
+                        set_caption(frame_count, frames)
+                    elif event.key == pygame.K_BACKSPACE and frame_count > 0:
+                        frame_count -= 1
+                        height, width, _ = frames[frame_count].shape
+                        set_caption(frame_count, frames)
                     elif event.key == pygame.K_LEFT:
                         frames[frame_count] = np.rot90(frames[frame_count])
                         width, height = height, width

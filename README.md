@@ -14,10 +14,9 @@ Turn a video recording of a slide projector flipping through slides into a direc
 #### How to Use
 
 1. Start the script with `python src/process_video.py <INPUT_PATH>` which will use default parameters.
-2. Click the corners of the slide when prompted in the order: top left, top right, bottom right, bottom left.
-    - The image displayed is an average of all frames loaded so far, so if you don't see a slide to reference, just wait
-      until more frames are loaded.
-3. Wait for the script to complete.
+2. Drag the red circles into the corners of the slide. Press enter when finished.
+    - The image displayed is an average of all photos loaded so far.
+3. Wait for the script to transform all images.
 4. View the results in the specified output directory (defaults to `./output`).
 5. View the brightness graph in the specified output path (defaults to `./brightness.png`)
     - If not all slides are captured, or duplicate slides are captured, reference the brightness graph and tweak the
@@ -40,29 +39,32 @@ Turn a video recording of a slide projector flipping through slides into a direc
 | Backtrack Time     | `-b` | `50`              | How many milliseconds to backtrack when capturing. Too low and you may capture slide transitions, too high and you may capture before the exposure has fully adjusted. |
 | Start Frame        | `-s` | `0`               | The frame number processing starts at.                                                                                                                                 |
 | End Frame          | `-e` | `None` (no limit) | The frame number processing ends at.                                                                                                                                   |
-| Corners            | `-n` | `None` (prompt)   | A JSON array of each corner. Useful for tuning other values while keeping corners constant. By default, a window will open prompting you to click each corner.         |
+| Corners            | `-n` | `None` (prompt)   | A JSON array of each corner. Useful for tuning other values while keeping corners constant. By default, a window will open prompting you to specify the corners.       |
 | Scale Down         | `-d` | `2`               | The factor to scale down pygame window sizes by. If the pygame window extends beyond the edges of your screen, consider increasing this factor.                        |
 
 ### Processing Photos
 
-Crop and transform a directory of photos of a slide projector screen.
+Transform and rotate a directory of photos of a slide projector screen.
 
 #### How to Use
 
-1. Start the script with `python src/process_photos.py <INPUT_PATH>` which will use default parameters.
-2. Click the corners of the slide when prompted in the order: top left, top right, bottom right, bottom left.
+1. Start the script with `python src/process_photos.py -t -r <INPUT_PATH>` which will use default parameters and perform both transforms and rotations.
+2. Drag the red circles into the corners of the slide. Press enter when finished.
     - The image displayed is an average of all photos loaded so far.
-3. Wait for the script to complete.
-4. View the results in the specified output directory (defaults to `./output`).
+3. Wait for the script to transform all images.
+4. Rotate images using the arrow keys, press space to advance or backspace to go back one slide.
+    - The window will automatically close once its gone through all slides.
+5. Wait for the script to rotate all images.
+6. View the results in the specified output directory (defaults to `./output`).
 
 #### Optional Parameters
 
-| Name             | Flag | Default         | Description                                                                                                                                                    |
-|------------------|------|-----------------|----------------------------------------------------------------------------------------------------------------------------------------------------------------|
-| Output           | `-o` | `./output`      | The output path. The directory will be created if it does not exist.                                                                                           |
-| Aspect Ratio     | `-a` | `3:2`           | The aspect ratio of the resulting images. This depends on the type of slides you are scanning.                                                                 |
-| Corners          | `-n` | `None` (prompt) | A JSON array of each corner. Useful for tuning other values while keeping corners constant. By default, a window will open prompting you to click each corner. |
-| Images Per Slide | `-i` | `1`             | How many images in the input folder represent one slide. This is useful if your camera saves multiple photos per slide. Only the latest image will be saved.   |
-| Transform        | `-t` | `off`           | Perform an initial pass using the corners to transform each image to account for rotation and skew.                                                            |
-| Rotate           | `-r` | `off`           | Perform a second pass using the arrow keys to optionally rotate each image.                                                                                    |
-| Scale Down       | `-d` | `2`             | The factor to scale down pygame window sizes by. If the pygame window extends beyond the edges of your screen, consider increasing this factor.                |
+| Name             | Flag | Default         | Description                                                                                                                                                      |
+|------------------|------|-----------------|------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| Output           | `-o` | `./output`      | The output path. The directory will be created if it does not exist.                                                                                             |
+| Aspect Ratio     | `-a` | `3:2`           | The aspect ratio of the resulting images. This depends on the type of slides you are scanning.                                                                   |
+| Corners          | `-n` | `None` (prompt) | A JSON array of each corner. Useful for tuning other values while keeping corners constant. By default, a window will open prompting you to specify the corners. |
+| Images Per Slide | `-i` | `1`             | How many images in the input folder represent one slide. This is useful if your camera saves multiple photos per slide. Only the latest image will be saved.     |
+| Transform        | `-t` | `off`           | Perform an initial pass using the corners to transform each image to account for rotation and skew.                                                              |
+| Rotate           | `-r` | `off`           | Perform a second pass using the arrow keys to optionally rotate each image.                                                                                      |
+| Scale Down       | `-d` | `2`             | The factor to scale down pygame window sizes by. If the pygame window extends beyond the edges of your screen, consider increasing this factor.                  |

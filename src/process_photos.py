@@ -87,11 +87,15 @@ def main(
     scale_down,
 ):
     if not transform and not rotate:
-        raise ValueError('One or both transform (-t) or rotate (-r) flags must be specified.')
+        error('One or both transform (-t) or rotate (-r) flags must be specified.')
+
+    if os.path.normpath(input_path) == os.path.normpath(output_path):
+        error('Input and output paths cannot be the same.')
+
+    prepare_output_path(output_path)
 
     if transform:
         corners = prompt_for_corners(generate_frames(input_path, images_per_slide), scale_down) if corners is None else json.loads(corners)
-        prepare_output_path(output_path)
 
     frames = list(generate_frames(input_path, images_per_slide))
     total_frames = len(os.listdir(input_path)) // images_per_slide

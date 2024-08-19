@@ -13,7 +13,9 @@ import pygame
 
 def generate_frames(input_path, images_per_slide):
     for file_name in itertools.islice(sorted(os.listdir(input_path)), images_per_slide - 1, None, images_per_slide):
-        yield cv2.imread(os.path.join(input_path, file_name))
+        image = cv2.imread(os.path.join(input_path, file_name))
+        if image is not None:
+            yield image
 
 
 def set_caption(frame_count, frames):

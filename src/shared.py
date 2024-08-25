@@ -1,6 +1,5 @@
 import cv2
 import math
-import matplotlib.pyplot as plt
 import numpy as np
 import os
 import shutil
@@ -107,8 +106,6 @@ def prompt_for_corners(frames, scale_down):
             elif event.type == pygame.KEYDOWN:
                 if event.key == pygame.K_RETURN:
                     done = True
-
-    pygame.quit()
 
     print(f'''Run again with the following flag to use the same corners: "-n '{corners}'"''')
     return corners

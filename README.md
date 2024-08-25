@@ -52,7 +52,8 @@ Transform and rotate a directory of photos of a slide projector screen.
 2. Drag the red circles into the corners of the slide. Press enter when finished.
     - The image displayed is an average of all photos loaded so far.
 3. Wait for the script to transform all images.
-4. Rotate images using the arrow keys, press space to advance or backspace to go back one slide.
+4. Rotate images using the arrow keys, press the corresponding number keys to choose a slide to save and advance or backspace to go back one slide.
+    - If "Images Per Slide" is 1, the "1" number key will be the only option to advance.
     - The window will automatically close once its gone through all slides.
 5. Wait for the script to rotate all images.
 6. View the results in the specified output directory (defaults to `./output`).

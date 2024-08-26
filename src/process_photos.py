@@ -111,7 +111,7 @@ def main(
     prepare_output_path(output_path)
 
     if transform:
-        corners = prompt_for_corners(generate_frames(input_path, images_per_slide), scale_down) if corners is None else json.loads(corners)
+        corners = prompt_for_corners(generate_frames(input_path, images_per_slide), scale_down, None if corners is None else json.loads(corners))
 
     frames = list(generate_frames(input_path, 1 if rotate else images_per_slide))
     total_frames = len(os.listdir(input_path)) // images_per_slide

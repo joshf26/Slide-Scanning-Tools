@@ -34,7 +34,7 @@ def transform_frame(frame, corners, aspect_ratio):
     )
 
 
-def prompt_for_corners(frames, scale_down):
+def prompt_for_corners(frames, scale_down, corners = None):
     try:
         frame = next(frames).astype(np.float32)
     except StopIteration:
@@ -50,11 +50,12 @@ def prompt_for_corners(frames, scale_down):
     screen = pygame.display.set_mode((width // scale_down, height // scale_down))
     pygame.display.set_caption('Press enter to submit')
 
-    corners = [
-        [int(width * (1 / 4)), int(height * (1 / 4))], # Top Left
-        [int(width * (3 / 4)), int(height * (1 / 4))], # Top Right
-        [int(width * (3 / 4)), int(height * (3 / 4))], # Bottom Right
-        [int(width * (1 / 4)), int(height * (3 / 4))], # Bottom Left
+    if corners is None:
+        corners = [
+            [int(width * (1 / 4)), int(height * (1 / 4))], # Top Left
+            [int(width * (3 / 4)), int(height * (1 / 4))], # Top Right
+            [int(width * (3 / 4)), int(height * (3 / 4))], # Bottom Right
+            [int(width * (1 / 4)), int(height * (3 / 4))], # Bottom Left
     ]
     while not done:
         try:

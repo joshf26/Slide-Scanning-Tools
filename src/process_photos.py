@@ -149,7 +149,7 @@ if __name__ == '__main__':
 
     main(
         args.input,
-        args.output,
+        os.path.join(args.output, os.path.basename(os.path.normpath(args.input))),
         parse_aspect_ratio(args.aspect_ratio),
         args.corners,
         args.images_per_slide,

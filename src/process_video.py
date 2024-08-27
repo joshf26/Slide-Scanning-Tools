@@ -14,7 +14,7 @@ from shared import error, parse_aspect_ratio, prepare_output_path, prompt_for_co
 def open_video(path, start_frame):
     capture = cv2.VideoCapture(path)
     if not capture.isOpened():
-        error(f'Error opening video file: {path}')
+        error(f'cannot open video file: {path}')
     capture.set(cv2.CAP_PROP_POS_FRAMES, start_frame)
     yield capture
     capture.release()
@@ -115,7 +115,7 @@ def main(
         error('end_frame must be greater than start_frame')
 
 
-    corners = prompt_for_corners(generate_frames(input_path, start_frame), scale_down) if corners is None else json.loads(corners)
+    corners = prompt_for_corners(generate_frames(input_path, start_frame), scale_down, None if corners is None else json.loads(corners))
     prepare_output_path(output_path)
     frame_count, total_frames, frame_brightness = extract_frames(
         input_path,

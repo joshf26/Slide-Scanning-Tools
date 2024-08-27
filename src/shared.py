@@ -13,11 +13,9 @@ CORNER_NAMES = ['Top Left', 'Top Right', 'Bottom Right', 'Bottom Left', 'Done!']
 CORNER_RADIUS = 5
 UI_COLOR = (255, 0, 0)
 
-pygame.init()
-
 
 def error(message):
-    print(message, file=sys.stderr)
+    print(f'Error: {message}', file=sys.stderr)
     sys.exit(1)
 
 
@@ -34,11 +32,11 @@ def transform_frame(frame, corners, aspect_ratio):
     )
 
 
-def prompt_for_corners(frames, scale_down, corners = None):
+def prompt_for_corners(frames, scale_down, corners=None):
     try:
         frame = next(frames).astype(np.float32)
     except StopIteration:
-        error('No frames provided')
+        error('no frames provided')
 
     height, width, _ = frame.shape
     frame_count = 0
@@ -47,6 +45,7 @@ def prompt_for_corners(frames, scale_down, corners = None):
     done = False
 
     print('Opening pygame window for corner input...')
+    pygame.display.init()
     screen = pygame.display.set_mode((width // scale_down, height // scale_down))
     pygame.display.set_caption('Press enter to submit')
 
@@ -92,11 +91,11 @@ def prompt_for_corners(frames, scale_down, corners = None):
         for event in pygame.event.get():
             x, y = pygame.mouse.get_pos()
             if event.type == pygame.QUIT:
-                pygame.quit()
-                error('Pygame window closed: terminating')
+                pygame.display.quit()
+                error('pygame window closed: terminating')
             elif event.type == pygame.MOUSEBUTTONDOWN:
                 try:
-                    dragging = next(index for index in range(4) if math.dist(corners[index], [x * scale_down, y * scale_down]) <= CORNER_RADIUS * 2)
+                    dragging = next(index for index in range(4) if math.dist(corners[index], [x * scale_down, y * scale_down]) <= CORNER_RADIUS * 4)
                 except StopIteration:
                     dragging = None
             elif event.type == pygame.MOUSEBUTTONUP:
@@ -108,6 +107,8 @@ def prompt_for_corners(frames, scale_down, corners = None):
                 if event.key == pygame.K_RETURN:
                     done = True
 
+    pygame.display.quit()
+
     print(f'''Run again with the following flag to use the same corners: "-n '{corners}'"''')
     return corners
 
@@ -116,7 +117,7 @@ def prepare_output_path(output_path):
     if os.path.exists(output_path):
         output_files = os.listdir(output_path)
         if len(output_files) > 0 and not input(f'Warning: {output_path} has {len(output_files)} file(s) that will be deleted including "{output_files[0]}". Would you like to continue? [y/n] ').lower() == 'y':
-            error('Aborting')
+            error('aborting')
         shutil.rmtree(output_path)
     os.makedirs(output_path)
 
@@ -125,9 +126,9 @@ def parse_aspect_ratio(aspect_ratio):
     try:
         x, y = map(int, aspect_ratio.split(':'))
     except ValueError:
-        error('Error parsing aspect ratio: should be in the format "x:y"')
+        error('cannot parse aspect ratio: should be in the format "x:y"')
 
     try:
         return x / y
     except ZeroDivisionError:
-        error('Error parsing aspect ratio: divide by zero error')
+        error('cannot parse aspect ratio: divide by zero error')

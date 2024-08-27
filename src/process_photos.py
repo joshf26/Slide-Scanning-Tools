@@ -7,9 +7,10 @@ import numpy as np
 
 from shared import error, parse_aspect_ratio, prepare_output_path, prompt_for_corners, transform_frame
 
-# Import pygame last to allow `shared` to initialize it first
+# Import pygame last to allow `shared` to set up the environment
 import pygame
 
+pygame.font.init()
 FONT = pygame.font.SysFont(None, 32)
 NUMBERS = (pygame.K_1, pygame.K_2, pygame.K_3, pygame.K_4, pygame.K_5, pygame.K_6, pygame.K_7, pygame.K_8, pygame.K_9)
 
@@ -27,7 +28,10 @@ def set_caption(frame_count, frames):
 
 def rotate_images(frames, scale_down, images_per_slide):
     if not frames:
-        error('No frames provided')
+        error('no frames provided')
+
+    if len(frames) % images_per_slide != 0:
+        error('number of frames must be a multiple of images per slide')
 
     shape = frames[0].shape
     width = shape[1] // scale_down // images_per_slide
@@ -37,6 +41,7 @@ def rotate_images(frames, scale_down, images_per_slide):
     result = []
 
     print('Opening pygame window for rotation...')
+    pygame.display.init()
     screen = pygame.display.set_mode((size * images_per_slide, size))
     set_caption(frame_count, frames)
 
@@ -62,8 +67,8 @@ def rotate_images(frames, scale_down, images_per_slide):
 
             for event in pygame.event.get():
                 if event.type == pygame.QUIT:
-                    pygame.quit()
-                    error('Pygame window closed: terminating')
+                    pygame.display.quit()
+                    error('pygame window closed: terminating')
                 elif event.type == pygame.KEYDOWN:
                     if event.key in NUMBERS[:images_per_slide]:
                         result.append(frames[frame_count + NUMBERS.index(event.key)])
@@ -92,6 +97,8 @@ def rotate_images(frames, scale_down, images_per_slide):
     except StopIteration:
         pass
 
+    pygame.display.quit()
+
 def main(
     input_path,
     output_path,
@@ -103,10 +110,10 @@ def main(
     scale_down,
 ):
     if not transform and not rotate:
-        error('One or both transform (-t) or rotate (-r) flags must be specified.')
+        error('one or both transform (-t) or rotate (-r) flags must be specified.')
 
     if os.path.normpath(input_path) == os.path.normpath(output_path):
-        error('Input and output paths cannot be the same.')
+        error('input and output paths cannot be the same.')
 
     prepare_output_path(output_path)
 
@@ -143,9 +150,9 @@ if __name__ == '__main__':
     args = parser.parse_args()
 
     if args.images_per_slide < 1 or args.images_per_slide > 9:
-        error('Images per slide must be between 1 and 9 (inclusive)')
+        error('images per slide must be between 1 and 9 (inclusive)')
     if args.scale_down < 1:
-        error('Scale down must be at least 1')
+        error('scale down must be at least 1')
 
     main(
         args.input,

@@ -150,7 +150,7 @@ def main(
         corners = prompt_for_corners(generate_frames(input_path, images_per_slide), scale_down, None if corners is None else json.loads(corners))
 
     frames = list(generate_frames(input_path, 1 if rotate else images_per_slide))
-    total_frames = len(os.listdir(input_path)) // images_per_slide
+    total_frames = len(os.listdir(input_path))
 
     if transform:
         for index, frame in enumerate(frames):
@@ -167,7 +167,7 @@ def main(
         if year:
             change_date(path, year, index)
 
-    print(f'Done! {total_frames} frames saved to "{output_path}"')
+    print(f'Done! {total_frames // images_per_slide} frames saved to "{output_path}"')
 
 
 if __name__ == '__main__':

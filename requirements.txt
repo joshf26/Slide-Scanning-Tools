@@ -2,3 +2,4 @@ numpy
 opencv-python
 pygame
 matplotlib
+watchdog

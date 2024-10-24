@@ -1,5 +1,6 @@
 import argparse
 import datetime
+import re
 import cv2
 import itertools
 import json
@@ -23,7 +24,7 @@ def generate_frames(input_path, images_per_slide):
     for file_name in itertools.islice(sorted(os.listdir(input_path)), images_per_slide - 1, None, images_per_slide):
         image = cv2.imread(os.path.join(input_path, file_name))
         if image is not None:
-            yield image
+            yield file_name, image
 
 
 def set_caption(frame_count, frames):
@@ -37,7 +38,7 @@ def rotate_images(frames, scale_down, images_per_slide):
     if len(frames) % images_per_slide != 0:
         error('number of frames must be a multiple of images per slide')
 
-    shape = frames[0].shape
+    shape = frames[0][1].shape
     width = shape[1] // scale_down // images_per_slide
     height = shape[0] // scale_down // images_per_slide
     size = max(width, height)
@@ -57,7 +58,7 @@ def rotate_images(frames, scale_down, images_per_slide):
                     pygame.surfarray.make_surface(
                         np.flip(
                             np.rot90(cv2.cvtColor(cv2.resize(
-                                frames[frame_count + slide_frame].astype(np.uint8),
+                                frames[frame_count + slide_frame][1].astype(np.uint8),
                                 dsize=(width, height)
                             ), cv2.COLOR_BGR2RGB)),
                             0,
@@ -79,29 +80,41 @@ def rotate_images(frames, scale_down, images_per_slide):
                         frame_count += images_per_slide
                         if frame_count == len(frames):
                             return result
-                        shape = frames[frame_count].shape
+                        shape = frames[frame_count][1].shape
                         width = shape[1] // scale_down // images_per_slide
                         height = shape[0] // scale_down // images_per_slide
                         set_caption(frame_count, frames)
                     elif event.key == pygame.K_BACKSPACE and frame_count > 0:
                         result.pop()
                         frame_count -= images_per_slide
-                        shape = frames[frame_count].shape
+                        shape = frames[frame_count][1].shape
                         width = shape[1] // scale_down // images_per_slide
                         height = shape[0] // scale_down // images_per_slide
                         set_caption(frame_count, frames)
                     elif event.key == pygame.K_LEFT:
                         for slide_frame in range(images_per_slide):
-                            frames[frame_count + slide_frame] = np.rot90(frames[frame_count + slide_frame])
+                            frames[frame_count + slide_frame] = frames[frame_count + slide_frame][0], np.rot90(frames[frame_count + slide_frame][1])
                         width, height = height, width
                     elif event.key == pygame.K_RIGHT:
                         for slide_frame in range(images_per_slide):
-                            frames[frame_count + slide_frame] = np.rot90(frames[frame_count + slide_frame], 3)
+                            frames[frame_count + slide_frame] = frames[frame_count + slide_frame][0], np.rot90(frames[frame_count + slide_frame][1], 3)
                         width, height = height, width
     except StopIteration:
         pass
 
     pygame.display.quit()
+
+
+def apply_named_rotations(frames):
+    for file_name, frame in frames:
+        match = re.match(r'slide_[0-9]{4}_rotation_([0-3]).jpg$', file_name)
+        if not match:
+            continue
+
+        print(f'{file_name} detected to have rotation metadata.')
+
+        rotation = int(match.group(1))
+        yield file_name, np.rot90(frame, rotation)
 
 
 def change_date(file_path, year, index):
@@ -147,20 +160,23 @@ def main(
     prepare_output_path(output_path)
 
     if transform:
-        corners = prompt_for_corners(generate_frames(input_path, images_per_slide), scale_down, None if corners is None else json.loads(corners))
+        frames_iter = (frame[1] for frame in generate_frames(input_path, images_per_slide))
+        corners = prompt_for_corners(frames_iter, scale_down, None if corners is None else json.loads(corners))
 
     frames = list(generate_frames(input_path, 1 if rotate else images_per_slide))
     total_frames = len(os.listdir(input_path))
 
     if transform:
-        for index, frame in enumerate(frames):
+        for index, (file_name, frame) in enumerate(frames):
             print(f'Transforming frame {index + 1}/{total_frames}', end='\r')
-            frames[index] = transform_frame(frame, corners, aspect_ratio)
+            frames[index] = file_name, transform_frame(frame, corners, aspect_ratio)
 
     if rotate:
         frames = rotate_images(frames, scale_down, images_per_slide)
+    else:
+        frames = apply_named_rotations(frames)
 
-    for index, transformed_frame in enumerate(frames):
+    for index, (file_name, transformed_frame) in enumerate(frames):
         path = os.path.join(output_path, f'slide_{index + 1:04d}.jpg')
         cv2.imwrite(path, transformed_frame)
 

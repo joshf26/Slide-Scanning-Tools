@@ -113,8 +113,11 @@ def prompt_for_corners(frames, scale_down, corners=None):
     return corners
 
 
-def prepare_output_path(output_path):
+def prepare_output_path(output_path, clear=True):
     if os.path.exists(output_path):
+        if not clear:
+            return
+
         output_files = os.listdir(output_path)
         if len(output_files) > 0 and not input(f'Warning: {output_path} has {len(output_files)} file(s) that will be deleted including "{output_files[0]}". Would you like to continue? [y/n] ').lower() == 'y':
             error('aborting')

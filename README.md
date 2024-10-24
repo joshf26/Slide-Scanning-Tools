@@ -70,3 +70,7 @@ Transform and rotate a directory of photos of a slide projector screen.
 | Rotate           | `-r` | `off`      | Perform a second pass using the arrow keys to optionally rotate each image.                                                                                  |
 | Scale Down       | `-d` | `2`        | The factor to scale down pygame window sizes by. If the pygame window extends beyond the edges of your screen, consider increasing this factor.              |
 | Year             | `-y` | `None`     | Changes the dates on all photos to the set year. Each photo will be set to one minute after the previous.                                                    |
+
+### Live Selection
+
+TODO

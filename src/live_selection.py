@@ -2,6 +2,7 @@ import argparse
 import copy
 import os
 import queue
+import re
 import time
 import cv2
 import numpy as np
@@ -19,7 +20,11 @@ NUMBERS = (pygame.K_1, pygame.K_2, pygame.K_3, pygame.K_4, pygame.K_5, pygame.K_
 QUEUE = queue.Queue()
 
 
-def process_images(count, images, output, images_per_slide, scale_down):
+def process_images(images, output, images_per_slide, scale_down):
+    # f'slide_{count:04d}_rotation_{rotation % 4}.jpg'
+    files = os.listdir(output)
+    count = max(int(re.match(r'slide_(\d+)_rotation_\d\.jpg', file).group(1)) for file in files) + 1
+
     print(f'Starting image #{count} processing...')
 
     original_images = copy.deepcopy(images)
@@ -90,14 +95,13 @@ class FileCreatedHandler(watchdog.events.FileSystemEventHandler):
         self.queue.put(event)
         
 
-def main(input, output, images_per_slide, scale_down, start):
+def main(input, output, images_per_slide, scale_down):
     prepare_output_path(output, clear=False)
 
     if os.listdir(output):
         print(f'Warning: output directory {output} is not empty.')
 
     file_created_queue = queue.Queue()
-    count = 0
     images = []
 
     observer = watchdog.observers.Observer()
@@ -125,8 +129,7 @@ def main(input, output, images_per_slide, scale_down, start):
             images.append(image)
 
             if len(images) == images_per_slide:
-                if process_images(count, images, output, images_per_slide, scale_down):
-                    count += 1
+                process_images(images, output, images_per_slide, scale_down)
                 images = []
     finally:
         observer.stop()
@@ -138,7 +141,6 @@ if __name__ == '__main__':
     parser.add_argument('-o', '--output', type=str, default='./output', help='path to output images to (default ./output)')
     parser.add_argument('-i', '--images_per_slide', type=int, default=1, help='how many images should be produced (default 1, min 1, max 9)')
     parser.add_argument('-d', '--scale_down', type=int, default=1, help='scale down factor for pygame windows (default 1, min 1)')
-    parser.add_argument('-s', '--start', type=int, default=1, help='number to start the count at (default 1, min 1)')
     parser.add_argument('input', type=str, help='path to the input video')
     args = parser.parse_args()
 
@@ -146,13 +148,10 @@ if __name__ == '__main__':
         error('images per slide must be between 1 and 9 (inclusive)')
     if args.scale_down < 1:
         error('scale down must be at least 1')
-    if args.start < 1:
-        error('start must be at least 1')
     
     main(
         args.input,
         os.path.join(args.output, os.path.basename(os.path.normpath(args.input))),
         args.images_per_slide,
         args.scale_down,
-        args.start,
     )

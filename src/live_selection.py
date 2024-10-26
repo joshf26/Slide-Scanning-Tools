@@ -1,6 +1,7 @@
 import argparse
 import copy
 import os
+import queue
 import time
 import cv2
 import numpy as np
@@ -15,6 +16,7 @@ import pygame
 pygame.font.init()
 FONT = pygame.font.SysFont(None, 32)
 NUMBERS = (pygame.K_1, pygame.K_2, pygame.K_3, pygame.K_4, pygame.K_5, pygame.K_6, pygame.K_7, pygame.K_8, pygame.K_9)
+QUEUE = queue.Queue()
 
 
 def process_images(count, images, output, images_per_slide, scale_down):
@@ -80,35 +82,12 @@ def process_images(count, images, output, images_per_slide, scale_down):
 
 
 class FileCreatedHandler(watchdog.events.FileSystemEventHandler):
-    def __init__(self, output, images_per_slide, scale_down, start):
+    def __init__(self, queue):
         super().__init__()
-        self.images = []
-        self.output = output
-        self.images_per_slide = images_per_slide
-        self.scale_down = scale_down
-        self.count = start
+        self.queue = queue
 
     def on_created(self, event):
-        if event.is_directory or not event.src_path.endswith('.JPG'):
-            print(f'Warning! Ignoring {event.src_path} because it is not a JPG.')
-            return
-        
-        # Wait for the file to be fully written
-        time.sleep(0.5)
-        
-        image = cv2.imread(event.src_path)
-
-        if image is None:
-            print(f'Warning! Ignoring {event.src_path} because it could not be read.')
-            return
-
-        print(f'Discovered image: {event.src_path} ({len(self.images) + 1}/{self.images_per_slide}).')
-        self.images.append(image)
-
-        if len(self.images) == self.images_per_slide:
-            if process_images(self.count, self.images, self.output, self.images_per_slide, self.scale_down):
-                self.count += 1
-            self.images = []
+        self.queue.put(event)
         
 
 def main(input, output, images_per_slide, scale_down, start):
@@ -117,14 +96,38 @@ def main(input, output, images_per_slide, scale_down, start):
     if os.listdir(output):
         print(f'Warning: output directory {output} is not empty.')
 
+    file_created_queue = queue.Queue()
+    count = 0
+    images = []
+
     observer = watchdog.observers.Observer()
-    observer.schedule(FileCreatedHandler(output, images_per_slide, scale_down, start), input, recursive=False)
-    
+    observer.schedule(FileCreatedHandler(file_created_queue), input, recursive=False)
     observer.start()
     print('Watching for new files...')
+
     try:
         while True:
-            time.sleep(1)
+            event = file_created_queue.get()
+            if event.is_directory or not event.src_path.endswith('.JPG'):
+                print(f'Warning! Ignoring {event.src_path} because it is not a JPG.')
+                return
+
+            # Wait for the file to be fully written
+            time.sleep(0.5)
+
+            image = cv2.imread(event.src_path)
+
+            if image is None:
+                print(f'Warning! Ignoring {event.src_path} because it could not be read.')
+                return
+
+            print(f'Discovered image: {event.src_path} ({len(images) + 1}/{images_per_slide}).')
+            images.append(image)
+
+            if len(images) == images_per_slide:
+                if process_images(count, images, output, images_per_slide, scale_down):
+                    count += 1
+                images = []
     finally:
         observer.stop()
         observer.join()

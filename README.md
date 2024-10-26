@@ -73,4 +73,21 @@ Transform and rotate a directory of photos of a slide projector screen.
 
 ### Live Selection
 
-TODO
+Rotate and select photos during capture so it doesn't have to be done as a second pass.
+
+#### How to Use
+
+1. Start the script with `python src/live_selection.py <INPUT_PATH>` which will use default parameters.
+2. Take pictures that write to the specified input path. Alternatively for testing you can use `python src/simulate_iad.py <INPUT_PATH>` to generate test images.
+3. Rotate images using the arrow keys, press the corresponding number keys to choose a slide to save or escape to discard the current images.
+    - If "Images Per Slide" is 1, the "1" number key will be the only option to continue.
+4. Repeat from step 2 until the tray is scanned, then use CTRL+C to stop the script.
+5. View the results in the specified output directory (defaults to `./output`).
+
+#### Optional Parameters
+
+| Name             | Flag | Default    | Description                                                                                                                                                  |
+|------------------|------|------------|--------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| Output           | `-o` | `./output` | The output path. The directory will be created if it does not exist.                                                                                         |
+| Images Per Slide | `-i` | `1`        | How many images in the input folder represent one slide. This is useful if your camera saves multiple photos per slide. Only the latest image will be saved. |
+| Scale Down       | `-d` | `2`        | The factor to scale down pygame window sizes by. If the pygame window extends beyond the edges of your screen, consider increasing this factor.              |

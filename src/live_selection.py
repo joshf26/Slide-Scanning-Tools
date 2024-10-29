@@ -21,9 +21,9 @@ QUEUE = queue.Queue()
 
 
 def process_images(images, output, images_per_slide, scale_down):
-    # f'slide_{count:04d}_rotation_{rotation % 4}.jpg'
     files = os.listdir(output)
-    count = max(int(re.match(r'slide_(\d+)_rotation_\d\.jpg', file).group(1)) for file in files) + 1
+    matches = (re.match(r'slide_(\d+)_rotation_\d\.jpg', file) for file in files)
+    count = max([0, *(int(match.group(1)) for match in matches if match is not None)]) + 1
 
     print(f'Starting image #{count} processing...')
 

@@ -17,7 +17,6 @@ import pygame
 pygame.font.init()
 FONT = pygame.font.SysFont(None, 32)
 NUMBERS = (pygame.K_1, pygame.K_2, pygame.K_3, pygame.K_4, pygame.K_5, pygame.K_6, pygame.K_7, pygame.K_8, pygame.K_9)
-QUEUE = queue.Queue()
 
 
 def process_images(images, output, images_per_slide, scale_down):

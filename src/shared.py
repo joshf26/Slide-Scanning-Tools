@@ -9,6 +9,9 @@ os.environ['PYGAME_HIDE_SUPPORT_PROMPT'] = "hide"
 
 import pygame
 
+pygame.font.init()
+FONT = pygame.font.SysFont(None, 32)
+NUMBERS = (pygame.K_1, pygame.K_2, pygame.K_3, pygame.K_4, pygame.K_5, pygame.K_6, pygame.K_7, pygame.K_8, pygame.K_9)
 CORNER_NAMES = ['Top Left', 'Top Right', 'Bottom Right', 'Bottom Left', 'Done!']
 CORNER_RADIUS = 5
 UI_COLOR = (255, 0, 0)
@@ -16,7 +19,7 @@ UI_COLOR = (255, 0, 0)
 
 def error(message):
     print(f'Error: {message}', file=sys.stderr)
-    sys.exit(1)
+    os._exit(1)
 
 
 def transform_frame(frame, corners, aspect_ratio):

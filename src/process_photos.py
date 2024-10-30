@@ -10,14 +10,10 @@ import PIL.ExifTags
 import PIL.Image
 import time
 
-from shared import error, parse_aspect_ratio, prepare_output_path, prompt_for_corners, transform_frame
+from shared import FONT, NUMBERS, error, parse_aspect_ratio, prepare_output_path, prompt_for_corners, transform_frame
 
 # Import pygame last to allow `shared` to set up the environment
 import pygame
-
-pygame.font.init()
-FONT = pygame.font.SysFont(None, 32)
-NUMBERS = (pygame.K_1, pygame.K_2, pygame.K_3, pygame.K_4, pygame.K_5, pygame.K_6, pygame.K_7, pygame.K_8, pygame.K_9)
 
 
 def generate_frames(input_path, images_per_slide):

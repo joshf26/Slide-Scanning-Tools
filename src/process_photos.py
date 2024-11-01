@@ -110,7 +110,7 @@ def apply_named_rotations(frames):
         print(f'{file_name} detected to have rotation metadata.')
 
         rotation = int(match.group(1))
-        yield file_name, np.rot90(frame, rotation)
+        yield file_name, np.rot90(frame, 4 - rotation)
 
 
 def change_date(file_path, year, index):

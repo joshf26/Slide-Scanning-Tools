@@ -63,7 +63,7 @@ class LiveSelection:
                 )
                 self.screen.blit(FONT.render(str(index + 1), False, (255, 0, 0)), (size * index + 5, 5))
 
-            pygame.display.flip()
+            self.write_text('ADVANCE SLIDE NOW', (0, 255, 0), fill=False)
 
             for event in pygame.event.get():
                 if event.type == pygame.QUIT:
@@ -91,8 +91,8 @@ class LiveSelection:
                         width, height = height, width
                         rotation += 1
 
-    def write_text(self, text, color):
-        self.screen.fill((0, 0, 0))
+    def write_text(self, text, color, fill=True):
+        if fill: self.screen.fill((0, 0, 0))
         text = FONT.render(text, False, color)
         self.screen.blit(text, text.get_rect(center=(self.screen.get_width() / 2, self.screen.get_height() / 2)))
         pygame.display.flip()

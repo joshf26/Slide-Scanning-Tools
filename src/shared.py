@@ -1,3 +1,7 @@
+import datetime
+import time
+import PIL
+import PIL.Image
 import cv2
 import math
 import numpy as np
@@ -138,3 +142,25 @@ def parse_aspect_ratio(aspect_ratio):
         return x / y
     except ZeroDivisionError:
         error('cannot parse aspect ratio: divide by zero error')
+
+def change_date(file_path, year, index):
+    hour = 12 + index // 60
+    minute = index % 60
+    new_time = datetime.datetime(year, 1, 1, hour, minute)
+    new_timestamp = time.mktime(new_time.timetuple())
+
+    # Change the OS time
+    os.utime(file_path, (new_timestamp, new_timestamp))
+
+    # Change the EXIF time
+    image = PIL.Image.open(file_path)
+    exif_data = image._getexif()
+    if not exif_data:
+        return
+
+    exif = {PIL.ExifTags.TAGS.get(k, k): v for k, v in exif_data.items()}
+    if 'DateTimeOriginal' not in exif:
+        return
+
+    exif['DateTimeOriginal'] = time.strftime("%Y:%m:%d %H:%M:%S")
+    image.save(file_path)

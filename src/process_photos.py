@@ -1,16 +1,12 @@
 import argparse
-import datetime
 import re
 import cv2
 import itertools
 import json
 import numpy as np
 import os
-import PIL.ExifTags
-import PIL.Image
-import time
 
-from shared import FONT, NUMBERS, error, parse_aspect_ratio, prepare_output_path, prompt_for_corners, transform_frame
+from shared import FONT, NUMBERS, change_date, error, parse_aspect_ratio, prepare_output_path, prompt_for_corners, transform_frame
 
 # Import pygame last to allow `shared` to set up the environment
 import pygame
@@ -113,29 +109,6 @@ def apply_named_rotations(frames):
         yield file_name, np.rot90(frame, 4 - rotation)
 
 
-def change_date(file_path, year, index):
-    hour = 12 + index // 60
-    minute = index % 60
-    new_time = datetime.datetime(year, 1, 1, hour, minute)
-    new_timestamp = time.mktime(new_time.timetuple())
-
-    # Change the OS time
-    os.utime(file_path, (new_timestamp, new_timestamp))
-
-    # Change the EXIF time
-    image = PIL.Image.open(file_path)
-    exif_data = image._getexif()
-    if not exif_data:
-        return
-
-    exif = {PIL.ExifTags.TAGS.get(k, k): v for k, v in exif_data.items()}
-    if 'DateTimeOriginal' not in exif:
-        return
-
-    exif['DateTimeOriginal'] = time.strftime("%Y:%m:%d %H:%M:%S")
-    image.save(file_path)
-
-
 def main(
     input_path,
     output_path,
@@ -183,8 +156,8 @@ def main(
 
 
 if __name__ == '__main__':
-    parser = argparse.ArgumentParser(description='Transform all images in a directory.')
-    parser.add_argument('input', type=str, help='path to the input video')
+    parser = argparse.ArgumentParser(description='Processes all images in a directory.')
+    parser.add_argument('input', type=str, help='path to the input directory')
     parser.add_argument('-o', '--output', type=str, default='./output', help='path to output images to (default ./output)')
     parser.add_argument('-a', '--aspect_ratio', type=str, default='3:2', help='aspect ratio of the resulting images (default 3:2)')
     parser.add_argument('-n', '--corners', type=str, help='JSON array of corner positions of the resulting image (default None)')
@@ -192,7 +165,7 @@ if __name__ == '__main__':
     parser.add_argument('-t', '--transform', action='store_true', help='perform a first pass of images and transform by defining corners (default off)')
     parser.add_argument('-r', '--rotate', action='store_true', help='perform a second pass of images and rotate them with the arrow keys (default off)')
     parser.add_argument('-d', '--scale_down', type=int, default=2, help='scale down factor for pygame windows (default 2, min 1)')
-    parser.add_argument('-y', '--year', type=int, help='scale down factor for pygame windows (default None)')
+    parser.add_argument('-y', '--year', type=int, help='specify a year to change image exif data to (default None)')
     args = parser.parse_args()
 
     if args.images_per_slide < 1 or args.images_per_slide > 9:
